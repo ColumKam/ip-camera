@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HLS 视频播放器</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+            background: #000;
+        }
+        .controls {
+            text-align: center;
+            margin-top: 15px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HLS 视频直播</h1>
+        <video id="video" controls></video>
+        <div class="controls">
+            <button id="play">播放</button>
+            <button id="pause">暂停</button>
+            <button id="reload">重新加载</button>
+        </div>
+    </div>
+
+    <!-- 引入 hls.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('video');
+            const playBtn = document.getElementById('play');
+            const pauseBtn = document.getElementById('pause');
+            const reloadBtn = document.getElementById('reload');
+
+            // HLS 流地址
+            const hlsUrl = 'http://192.168.3.26:8080/hls/playlist.m3u8';
+
+            // 初始化 HLS 播放器
+            function initPlayer() {
+                if (Hls.isSupported()) {
+                        const hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                        liveSyncDuration: 1,
+                        liveMaxLatencyDuration: 5,
+                        liveDurationInfinity: true
+                    });
+                    hls.loadSource(hlsUrl);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        console.log('视频流已加载，可以播放');
+                    });
+
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        console.error('HLS 错误:', data);
+                        if (data.fatal) {
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    console.log('网络错误，尝试恢复...');
+                                    hls.startLoad();
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    console.log('媒体错误，尝试恢复...');
+                                    hls.recoverMediaError();
+                                    break;
+                                default:
+                                    console.log('无法恢复的错误');
+                                    hls.destroy();
+                                    break;
+                            }
+                        }
+                    });
+
+                    return hls;
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // 对于 Safari 等原生支持 HLS 的浏览器
+                    video.src = hlsUrl;
+                } else {
+                    console.error('您的浏览器不支持 HLS');
+                    alert('您的浏览器不支持 HLS，请尝试使用 Chrome、Firefox 或 Safari');
+                }
+            }
+
+            // 初始化播放器
+            const player = initPlayer();
+
+            // 按钮事件
+            playBtn.addEventListener('click', function() {
+                video.play();
+            });
+
+            pauseBtn.addEventListener('click', function() {
+                video.pause();
+            });
+
+            reloadBtn.addEventListener('click', function() {
+                if (player) {
+                    player.destroy();
+                }
+                initPlayer();
+            });
+        });
+    </script>
+</body>
+</html>
