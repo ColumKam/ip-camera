@@ -29,6 +29,11 @@ void init_stream_config(StreamConfig *config) {
     config->framerate = 30;
     config->output_url = NULL;
     config->type = STREAM_TYPE_RTSP;
+    
+    // 初始化 RTSP 配置
+    config->rtsp.address = "0.0.0.0";
+    config->rtsp.port = "8554";
+    config->rtsp.mount_point = "/test";
 }
 
 GstElement* create_pipeline(StreamConfig *config) {
@@ -45,14 +50,17 @@ GstElement* create_pipeline(StreamConfig *config) {
     // 根据流类型构建不同的管道
     switch (config->type) {
         case STREAM_TYPE_RTSP:
-            pipeline_str = g_strdup_printf("%s ! rtph264pay name=pay0 pt=96", base_src);
+            // RTSP 管道在 setup_rtsp_pipeline 中创建
+            pipeline_str = NULL;
             break;
+            
         case STREAM_TYPE_RTMP:
             pipeline_str = g_strdup_printf(
                 "%s ! h264parse ! flvmux streamable=true ! "
                 "rtmpsink location=\"%s\"",
                 base_src, config->output_url);
             break;
+            
         case STREAM_TYPE_HLS:
             pipeline_str = g_strdup_printf(
                 "%s ! h264parse ! mpegtsmux ! "
@@ -79,5 +87,48 @@ void cleanup_stream(GstElement *pipeline, GMainLoop *loop) {
     }
     if (loop) {
         g_main_loop_unref(loop);
+    }
+}
+
+// RTSP 相关函数实现
+GstRTSPServer* create_rtsp_server(StreamConfig *config) {
+    GstRTSPServer *server = gst_rtsp_server_new();
+    
+    gst_rtsp_server_set_address(server, config->rtsp.address);
+    gst_rtsp_server_set_service(server, config->rtsp.port);
+    
+    return server;
+}
+
+void setup_rtsp_pipeline(GstRTSPServer *server, StreamConfig *config) {
+    GstRTSPMountPoints *mounts;
+    GstRTSPMediaFactory *factory;
+    gchar *launch_str;
+    
+    mounts = gst_rtsp_server_get_mount_points(server);
+    factory = gst_rtsp_media_factory_new();
+    
+    // 构建 RTSP 管道字符串
+    launch_str = g_strdup_printf(
+        "( v4l2src device=%s ! "
+        "video/x-raw,format=NV12,width=%d,height=%d,framerate=%d/1 ! "
+        "mpph264enc gop=30 ! rtph264pay name=pay0 pt=96 )",
+        config->device, config->width, config->height, config->framerate);
+    
+    gst_rtsp_media_factory_set_launch(factory, launch_str);
+    g_free(launch_str);
+    
+    gst_rtsp_media_factory_set_shared(factory, TRUE);
+    gst_rtsp_mount_points_add_factory(mounts, config->rtsp.mount_point, factory);
+    g_object_unref(mounts);
+}
+
+void start_rtsp_server(GstRTSPServer *server) {
+    gst_rtsp_server_attach(server, NULL);
+}
+
+void stop_rtsp_server(GstRTSPServer *server) {
+    if (server) {
+        g_object_unref(server);
     }
 } 
