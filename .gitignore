@@ -1,0 +1,13 @@
+# Ignore IDE configuration files
+.idea/
+
+# Ignore VSCode
+.vscode/
+.code-workspace
+
+# Ignore build directory
+build/
+
+# Ignore CMake cache
+CMakeCache.txt
+CMakeUserPresets.json
