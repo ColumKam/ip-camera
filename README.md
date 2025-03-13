@@ -1,20 +1,33 @@
 # IP Camera
 
+## 修改历史
+
+| 版本  | 作者  | 日期 | 修改说明 |
+|---|---|---|---|
+|   | colum.jin | 2025-03-13| 初始版本，代码整合完成 |
+
+## 支持芯片
+
+| 芯片  | 系統  | Linux Kernel |  |
+|---|---|---|---|
+| RK3568  | Debian  | 6.1.75 |   |
+
 ## 编译
 
 ### 本地编译
 
-#### RTSP 本地编译
+``` shell
+cd ip-camera
+mkdir build && cd build
 
-gcc -o rtsp-streamer rtsp-streamer.c $(pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0)
+# 使用默认配置
+cmake ..
 
-#### RTMP 本地编译
+# 或者使用 Debug 配置
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 
-gcc -o rtmp-streamer rtmp-streamer.c $(pkg-config --cflags --libs gstreamer-1.0)
-
-#### HLS 本地编译
-
-gcc -o hls-streamer hls-streamer.c $(pkg-config --cflags --libs gstreamer-1.0)
+make -j4
+```
 
 ### 交叉编译
 
@@ -22,21 +35,36 @@ TODO
 
 ## 使用
 
-### RTSP 使用
+``` shell
+./streamer -h
+./streamer: option requires an argument -- 'h'
+Usage: ./streamer [options]
+Options:
+  -t <type>     Stream type (rtsp, rtmp, hls)
+  -o <url>      Output URL/path
+  -d <device>   Video device (default: /dev/video0)
+  -w <width>    Video width (default: 3200)
+  -h <height>   Video height (default: 1800)
+  -f <fps>      Framerate (default: 30)
+  -a <addr>     RTSP server address (default: 0.0.0.0)
+  -p <port>     RTSP server port (default: 8554)
+  -m <mount>    RTSP mount point (default: /test)
 
-./rtsp-streamer
+Examples:
+  RTSP: ./streamer -t rtsp
+  RTMP: ./streamer -t rtmp -o rtmp://0.0.0.0:1935/live/stream
+  HLS:  ./streamer -t hls -o /tmp/hls
+```
+
+### RTSP 使用
 
 视频地址：rtsp://192.168.2.102:8554/test
 
 ### RTMP 使用
 
-./rtmp-streamer
-
 视频地址：rtmp://192.168.2.102:1935/live/stream
 
 ### HLS 使用
-
-./hls-streamer /var/www/html/hls
 
 视频地址：<http://192.168.2.102:8080/hls/playlist.m3u8>
 网页地址：<http://192.168.2.102:8080/index.html>
@@ -126,12 +154,6 @@ RTSP、RTMP 和 HLS 是三种常见的流媒体协议，它们在推流（直播
 
 ### 基于 Rockchip 平台
 
-目前支持芯片:
-
-| 芯片  | 系統  | Linux Kernel |  |
-|---|---|---|---|
-| RK3568  | Debian  | 6.1.75 |   |
-
 ## RTSP、RTMP 和 HLS 推送流程
 
 主要展示推流器、服务器、客户端三者之间的关系
@@ -194,7 +216,7 @@ RTSP、RTMP 和 HLS 是三种常见的流媒体协议，它们在推流（直播
 
 ## TODO List
 
-1. 整理代码到 main.c 中
-2. RTMP 支持 WebRTC
-3. RTMP 支持 网页访问
-4. 支持 WiFi AP 模式下功能
+- [x] 整理代码到 main.c 中 (完成日期：2025-3-13)
+- [] RTMP 支持 WebRTC
+- [] RTMP 支持 网页访问
+- [] 支持 WiFi AP 模式下功能

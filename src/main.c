@@ -14,6 +14,8 @@ static void print_usage(const char *program_name) {
     g_print("  -m <mount>    RTSP mount point (default: /test)\n");
     g_print("\nExamples:\n");
     g_print("  RTSP: %s -t rtsp \n", program_name);
+    g_print("  RTSP: %s -t rtsp -a 192.168.1.100 -p 8555 -m /camera1\n", program_name);
+    g_print("  RTSP: %s -t rtsp -w 1920 -h 1080 -f 25\n", program_name);
     g_print("  RTMP: %s -t rtmp -o rtmp://0.0.0.0:1935/live/stream\n", program_name);
     g_print("  HLS:  %s -t hls -o /tmp/hls\n", program_name);
 }
