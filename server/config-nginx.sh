@@ -60,7 +60,7 @@ else
 fi
 
 # 重启 nginx
-nginx -s reload
+/usr/local/nginx/sbin/nginx -s reload
 if [ $? -ne 0 ]; then
     echo "重启 nginx 失败"
     exit 1

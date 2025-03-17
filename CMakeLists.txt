@@ -11,6 +11,8 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 pkg_check_modules(GSTREAMER_APP REQUIRED gstreamer-app-1.0)
 pkg_check_modules(GSTREAMER_VIDEO REQUIRED gstreamer-video-1.0)
 pkg_check_modules(GSTREAMER_RTSP REQUIRED gstreamer-rtsp-server-1.0)
+pkg_check_modules(QRENCODE REQUIRED libqrencode)
+pkg_check_modules(CAIRO REQUIRED cairo)
 
 # 添加源文件
 set(SOURCES
@@ -32,6 +34,8 @@ target_include_directories(streamer PRIVATE
     ${GSTREAMER_APP_INCLUDE_DIRS}
     ${GSTREAMER_VIDEO_INCLUDE_DIRS}
     ${GSTREAMER_RTSP_INCLUDE_DIRS}
+    ${QRENCODE_INCLUDE_DIRS}
+    ${CAIRO_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/src
 )
 
@@ -41,6 +45,8 @@ target_link_libraries(streamer
     ${GSTREAMER_APP_LIBRARIES}
     ${GSTREAMER_VIDEO_LIBRARIES}
     ${GSTREAMER_RTSP_LIBRARIES}
+    ${QRENCODE_LIBRARIES}
+    ${CAIRO_LIBRARIES}
 )
 
 # 设置编译选项

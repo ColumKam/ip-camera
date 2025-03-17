@@ -1,5 +1,8 @@
 #include "gst-streamer-common.h"
 
+#include <qrencode.h>
+#include <cairo/cairo.h>
+
 static void print_usage(const char *program_name) {
     g_print("Usage: %s [options]\n", program_name);
     g_print("Options:\n");
@@ -18,6 +21,113 @@ static void print_usage(const char *program_name) {
     g_print("  RTSP: %s -t rtsp -w 1920 -h 1080 -f 25\n", program_name);
     g_print("  RTMP: %s -t rtmp -o rtmp://0.0.0.0:1935/live/stream\n", program_name);
     g_print("  HLS:  %s -t hls -o /tmp/hls\n", program_name);
+}
+
+// 添加二维码生成和显示相关函数
+static void generate_wifi_qr_code(const char *ssid) {
+    char wifi_config[128];
+    // WIFI:S:<SSID>;T:<WPA|WEP|>;P:<password>;H:<hidden>;
+    snprintf(wifi_config, sizeof(wifi_config),
+            "WIFI:S:%s;T:WPA2;P:RaysenChip;;",
+            ssid);
+
+    g_print("QR Code content: %s\n", wifi_config);
+
+    // 生成二维码
+    QRcode *qrcode = QRcode_encodeString(wifi_config, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+    if (!qrcode) {
+        g_printerr("Failed to generate QR code\n");
+        return;
+    }
+
+    // 创建 Cairo 表面和上下文
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 400, 400);
+    cairo_t *cr = cairo_create(surface);
+
+    // 设置白色背景P
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_paint(cr);
+
+    // 绘制二维码
+    int margin = 10;
+    double scale = (400.0 - 2 * margin) / qrcode->width;
+    cairo_set_source_rgb(cr, 0, 0, 0);
+
+    for (int y = 0; y < qrcode->width; y++) {
+        for (int x = 0; x < qrcode->width; x++) {
+            if (qrcode->data[y * qrcode->width + x] & 1) {
+                cairo_rectangle(cr,
+                              margin + x * scale, 
+                              margin + y * scale, 
+                              scale, scale);
+            }
+        }
+    }
+    cairo_fill(cr);
+
+    // 保存二维码图像
+    cairo_surface_write_to_png(surface, "/tmp/wifi_qr.png");
+
+    // 清理资源
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+    QRcode_free(qrcode);
+}
+
+static void generate_hls_qr_code(const char *ip_address, int port) {
+    char hls_url[128];
+    snprintf(hls_url, sizeof(hls_url),
+             "http://%s:%d/index.html", ip_address, port);
+
+    g_print("QR Code content: %s\n", hls_url);
+
+    // 生成二维码
+    QRcode *qrcode = QRcode_encodeString(hls_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+    if (!qrcode) {
+        g_printerr("Failed to generate QR code\n");
+        return;
+    }
+
+    // 创建 Cairo 表面和上下文
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 400, 400);
+    cairo_t *cr = cairo_create(surface);
+
+    // 设置白色背景
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_paint(cr);
+
+    // 绘制二维码
+    int margin = 10;
+    double scale = (400.0 - 2 * margin) / qrcode->width;
+    cairo_set_source_rgb(cr, 0, 0, 0);
+
+    for (int y = 0; y < qrcode->width; y++) {
+        for (int x = 0; x < qrcode->width; x++) {
+            if (qrcode->data[y * qrcode->width + x] & 1) {
+                cairo_rectangle(cr,
+                              margin + x * scale, 
+                              margin + y * scale, 
+                              scale, scale);
+            }
+        }
+    }
+    cairo_fill(cr);
+
+    // 保存二维码图像
+    cairo_surface_write_to_png(surface, "/tmp/hls_qr.png");
+
+    // 清理资源
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+    QRcode_free(qrcode);
+}
+
+#include <sys/time.h>
+
+static double get_time_ms(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0);
 }
 
 int main(int argc, char *argv[]) {
@@ -129,9 +239,41 @@ int main(int argc, char *argv[]) {
                 g_print("RTMP streaming started. Access at %s\n", config.output_url);
                 break;
             case STREAM_TYPE_HLS:
-                g_print("HLS streaming started. Access at http://YOUR_IP:8080%s/playlist.m3u8\n", 
-                       config.output_url);
-                break;
+            {
+                // 生成二维码
+                char local_ip[16] = "192.168.2.102"; // 您需要获取实际的本地 IP
+
+                generate_wifi_qr_code("Raysenchip");
+                generate_hls_qr_code(local_ip, 8080);
+
+                // 创建显示二维码的管道
+                GstElement *qr_pipeline = gst_parse_launch(
+                    "compositor name=comp sink_0::xpos=0 sink_0::ypos=0 sink_1::xpos=600 sink_1::ypos=0 ! "
+                    "videoflip method=clockwise ! "
+                    "videoconvert ! autovideosink "
+                    
+                    // 第一个二维码（WiFi）的管道
+                    "filesrc location=/tmp/wifi_qr.png ! pngdec ! videoconvert ! "
+                    "videoscale ! video/x-raw,width=500,height=400 ! "
+                    "textoverlay text=\"WIFI 连接\" valignment=bottom halignment=center ypad=50 font-desc=\"Sans, 24\" ! "
+                    "comp.sink_0 "
+                    
+                    // 第二个二维码（HLS）的管道
+                    "filesrc location=/tmp/hls_qr.png ! pngdec ! videoconvert ! "
+                    "videoscale ! video/x-raw,width=500,height=400 ! "
+                    "textoverlay text=\"HLS 视频\" valignment=bottom halignment=center ypad=50 font-desc=\"Sans, 24\" ! "
+                    "comp.sink_1 ",
+                    NULL);
+                if (!qr_pipeline) {
+                    g_printerr("Failed to create QR code display pipeline\n");
+                } else {
+                    gst_element_set_state(qr_pipeline, GST_STATE_PLAYING);
+                }
+
+                g_print("HLS streaming started. Scan QR code to connect.\n");
+                g_print("Access at http://%s:8080/playlist.m3u8\n", local_ip);
+            }
+            break;
         }
     }
     
