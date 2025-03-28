@@ -24,8 +24,8 @@ void on_stream_eos(GstBus *bus, GstMessage *msg, gpointer data) {
 
 void init_stream_config(StreamConfig *config) {
     config->device = "/dev/video0";
-    config->width = 3200;
-    config->height = 1800;
+    config->width = 1920;
+    config->height = 1080;
     config->framerate = 30;
     config->output_url = NULL;
     config->type = STREAM_TYPE_RTSP;
