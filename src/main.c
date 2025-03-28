@@ -249,19 +249,18 @@ int main(int argc, char *argv[]) {
                 // 创建显示二维码的管道
                 GstElement *qr_pipeline = gst_parse_launch(
                     "compositor name=comp sink_0::xpos=0 sink_0::ypos=0 sink_1::xpos=600 sink_1::ypos=0 ! "
-                    "videoflip method=clockwise ! "
                     "videoconvert ! autovideosink "
                     
                     // 第一个二维码（WiFi）的管道
                     "filesrc location=/tmp/wifi_qr.png ! pngdec ! videoconvert ! "
                     "videoscale ! video/x-raw,width=500,height=400 ! "
-                    "textoverlay text=\"WIFI 连接\" valignment=bottom halignment=center ypad=50 font-desc=\"Sans, 24\" ! "
+                    "textoverlay text=\"WIFI 连接\" valignment=bottom halignment=center ypad=20 font-desc=\"Sans, 24\" ! "
                     "comp.sink_0 "
                     
                     // 第二个二维码（HLS）的管道
                     "filesrc location=/tmp/hls_qr.png ! pngdec ! videoconvert ! "
                     "videoscale ! video/x-raw,width=500,height=400 ! "
-                    "textoverlay text=\"HLS 视频\" valignment=bottom halignment=center ypad=50 font-desc=\"Sans, 24\" ! "
+                    "textoverlay text=\"HLS 视频\" valignment=bottom halignment=center ypad=20 font-desc=\"Sans, 24\" ! "
                     "comp.sink_1 ",
                     NULL);
                 if (!qr_pipeline) {
