@@ -5,17 +5,33 @@
 | 版本  | 作者  | 日期 | 修改说明 |
 |---|---|---|---|
 |   | colum.jin | 2025-03-13| 初始版本，代码整合完成 |
-|   | colum.jin | 2025-03-17| HLS 串流可通过扫码访问 <br>新增 FAQ 板块——纪录常见问题 |
+|   | colum.jin | 2025-03-17| HLS 串流可通过扫码访问 <br>**新增**: FAQ 板块——纪录常见问题 |
+|   | colum.jin | 2025-03-28| **新增**: <br>支持芯片： Orangepi 3b <br> 编译： **依赖**章节 <br> 使用：**server 搭建**章节 <br> FAQ: **视频地址可访问但视频不能正常播放**章节 <br> |
 
 ## 支持芯片
 
-| 芯片  | 系統  | Linux Kernel |  |
+
+| 芯片  | 系统  | Linux Kernel | 开发板 |
 |---|---|---|---|
-| RK3568  | Debian  | 6.1.75 |   |
+| RK3568 | Debian | 6.1.75 | Rockchip Developer Kit RK3568 EVB1 |
+| RK3566 | Ubuntu 22.04 | 5.10.160 | Orangepi 3b |
+
 
 ## 编译
 
 ### 本地编译
+
+#### 依赖
+
+```
+sudo apt install -y cmake
+sudo apt install -y gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0
+sudo apt install -y libgstrtspserver-1.0-dev gstreamer1.0-rtsp
+sudo apt install -y libqrencode-dev
+sudo apt install -y libcairo2-dev
+```
+
+#### 步骤
 
 ``` shell
 cd ip-camera
@@ -36,6 +52,12 @@ TODO
 
 ## 使用
 
+### server 搭建
+
+用于 RTMP 和 HLS 两种串流方式，server 是基于 nginx 实现的，具体流程在 server/install-nginx.sh 和 server/config-nginx.sh 中。
+
+### streamer 使用
+
 ``` shell
 ./streamer -h
 ./streamer: option requires an argument -- 'h'
@@ -44,7 +66,7 @@ Options:
   -t <type>     Stream type (rtsp, rtmp, hls)
   -o <url>      Output URL/path
   -d <device>   Video device (default: /dev/video0)
-  -w <width>    Video width (default: 3200)
+  -w <width>    Video width (default: 1920)
   -h <height>   Video height (default: 1800)
   -f <fps>      Framerate (default: 30)
   -a <addr>     RTSP server address (default: 0.0.0.0)
@@ -54,7 +76,7 @@ Options:
 Examples:
   RTSP: ./streamer -t rtsp
   RTMP: ./streamer -t rtmp -o rtmp://0.0.0.0:1935/live/stream
-  HLS:  ./streamer -t hls -o /tmp/hls
+  HLS:  ./streamer -t hls -o /var/www/html/hls/
 ```
 
 ### RTSP 使用
@@ -246,3 +268,76 @@ VLC 无法打开 MRL「http://192.168.2.102:8080/playlist.m3u8」。详情请检
   2.2. 可以通过 /etc/init.d/rkaiq_3A.sh stop /etc/init.d/rkaiq_3A.sh start 重启 rkaiq_3A_server 服务
 3. Ngnix 是否正常？
   3.1 可以通过 /usr/local/nginx/sbin/nginx -s reload 重启 nginx 服务
+4. 检查 nginx 错误日志
+  sudo tail -n 50 /usr/local/nginx/logs/error.log
+
+### 视频地址可访问但视频不能正常播放
+
+【**现象**】
+
+1. 多设备访问不同局域网内的 index.html 网页均出现网页可访问，但是视频不能播放（显示圆环转圈）
+2. 检查 nginx 错误日志
+
+```
+sudo tail -n 50 /usr/local/nginx/logs/error.log
+```
+
+发现有类似日志（该日志从 Orangepi 3b 5.10 开发环境中获取）
+
+```
+2025/03/27 18:00:39 [notice] 33413#0: signal process started
+2025/03/27 18:00:39 [error] 33413#0: open() "/usr/local/nginx/logs/nginx.pid" failed (2: No such file or directory)
+2025/03/27 18:02:40 [notice] 33594#0: signal process started
+2025/03/27 18:12:56 [error] 33595#0: *4 open() "/usr/local/nginx/html/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:12:56 [error] 33595#0: *5 open() "/usr/local/nginx/html/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /playlist.m3u8 HTTP/1.0", host: "192.168.3.33:8080"
+2025/03/27 18:14:04 [error] 33595#0: *9 open() "/usr/local/nginx/html/favicon.ico" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /favicon.ico HTTP/1.1", host: "192.168.3.33:8080", referrer: "http://192.168.3.33:8080/index.html"
+2025/03/27 18:18:55 [error] 33595#0: *13 open() "/usr/local/nginx/html/favicon.ico" failed (2: No such file or directory), client: 192.168.2.17, server: 0.0.0.0, request: "GET /favicon.ico HTTP/1.1", host: "192.168.3.33:8080", referrer: "http://192.168.3.33:8080/index.html"
+2025/03/27 18:31:11 [error] 33595#0: *30 open() "/usr/local/nginx/html/favicon.ico" failed (2: No such file or directory), client: 192.168.2.155, server: 0.0.0.0, request: "GET /favicon.ico HTTP/1.1", host: "192.168.2.102:8080", referrer: "http://192.168.2.102:8080/index.html"
+2025/03/27 18:32:52 [error] 33595#0: *31 open() "/usr/local/nginx/html/favicon.ico" failed (2: No such file or directory), client: 192.168.3.12, server: 0.0.0.0, request: "GET /favicon.ico HTTP/1.1", host: "192.168.2.102:8080", referrer: "http://192.168.2.102:8080/index.html"
+2025/03/27 18:42:38 [error] 33595#0: *38 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:42:39 [error] 33595#0: *40 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:42:40 [error] 33595#0: *41 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:42:41 [error] 33595#0: *42 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:42:56 [error] 33595#0: *43 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080", referrer: "http://192.168.3.33:8080/index.html"
+2025/03/27 18:43:05 [error] 33595#0: *45 open() "/usr/local/nginx/html/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:43:05 [error] 33595#0: *46 open() "/usr/local/nginx/html/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /playlist.m3u8 HTTP/1.0", host: "192.168.3.33:8080"
+2025/03/27 18:43:15 [error] 33595#0: *47 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080"
+2025/03/27 18:43:15 [error] 33595#0: *48 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.0", host: "192.168.3.33:8080"
+2025/03/27 18:44:04 [error] 33595#0: *49 open() "/var/www/html/hls/playlist.m3u8" failed (2: No such file or directory), client: 192.168.3.30, server: 0.0.0.0, request: "GET /hls/playlist.m3u8 HTTP/1.1", host: "192.168.3.33:8080", referrer: "http://192.168.3.33:8080/index.html"
+```
+
+3. 检查 HLS 文件的访问权限和路径 
+
+```
+ls -l /var/www/html/hls/
+```
+
+```
+% ls -l /var/www/html/hls/
+total 42656
+-rw-r--r-- 1 root root     209 Mar 27 18:40 playlist.m3u8
+-rw-r--r-- 1 root root 2321424 Mar 27 18:39 segment_00004.ts
+-rw-r--r-- 1 root root 2308828 Mar 27 18:39 segment_00005.ts
+-rw-r--r-- 1 root root 2292096 Mar 27 18:39 segment_00006.ts
+-rw-r--r-- 1 root root 2291532 Mar 27 18:39 segment_00007.ts
+-rw-r--r-- 1 root root 2281568 Mar 27 18:39 segment_00008.ts
+-rw-r--r-- 1 root root 2290028 Mar 27 18:40 segment_00009.ts
+-rw-r--r-- 1 root root 2422944 Mar 27 18:40 segment_00010.ts
+-rw-r--r-- 1 root root 2358648 Mar 27 18:40 segment_00011.ts
+-rw-r--r-- 1 root root 2320672 Mar 27 18:40 segment_00012.ts
+-rw-r--r-- 1 root root 1200128 Mar 27 18:40 segment_00013.ts
+-rw-r--r-- 1 root root 2333080 Mar 27 18:39 segment_00485.ts
+-rw-r--r-- 1 root root 2387224 Mar 27 18:39 segment_00486.ts
+-rw-r--r-- 1 root root 2385344 Mar 27 18:39 segment_00487.ts
+-rw-r--r-- 1 root root 2284952 Mar 27 18:39 segment_00488.ts
+-rw-r--r-- 1 root root 2289276 Mar 27 18:39 segment_00489.ts
+-rw-r--r-- 1 root root 2316724 Mar 27 18:39 segment_00490.ts
+-rw-r--r-- 1 root root 2400948 Mar 27 18:39 segment_00491.ts
+-rw-r--r-- 1 root root 2402264 Mar 27 18:39 segment_00492.ts
+-rw-r--r-- 1 root root 2376696 Mar 27 18:39 segment_00493.ts
+-rw-r--r-- 1 root root  376832 Mar 27 18:39 segment_00494.ts
+```
+
+【**可能错误原因**】
+
+1. /usr/local/nginx/sbin/nginx 没有使用 root 权限执行，但是 streamer 的启动却是 root 权限执行
