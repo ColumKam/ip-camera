@@ -4,6 +4,7 @@
     <title>HLS 视频播放器</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,11 +47,21 @@
         button:hover {
             background: #45a049;
         }
+        .browser-warning {
+            display: none;
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>HLS 视频直播</h1>
+        <div id="browserWarning" class="browser-warning"></div>
         <video id="video" controls></video>
         <div class="controls">
             <button id="play">播放</button>
@@ -68,24 +79,56 @@
             const playBtn = document.getElementById('play');
             const pauseBtn = document.getElementById('pause');
             const reloadBtn = document.getElementById('reload');
+            const browserWarning = document.getElementById('browserWarning');
 
             // HLS 流地址
-            const hlsUrl = 'http://192.168.3.26:8080/hls/playlist.m3u8';
+            const hlsUrl = 'http://192.168.3.33:8080/hls/playlist.m3u8';
+
+            // 检测浏览器类型
+            function detectBrowser() {
+                const ua = navigator.userAgent;
+                if (ua.includes('Edge/')) {
+                    return 'Edge';
+                } else if (ua.includes('Chrome/')) {
+                    return 'Chrome';
+                } else if (ua.includes('Firefox/')) {
+                    return 'Firefox';
+                } else if (ua.includes('Safari/')) {
+                    return 'Safari';
+                }
+                return 'Unknown';
+            }
 
             // 初始化 HLS 播放器
             function initPlayer() {
+                const browser = detectBrowser();
+                console.log('当前浏览器:', browser);
+                console.log('HLS URL:', hlsUrl);
+
                 if (Hls.isSupported()) {
-                        const hls = new Hls({
+                    const hls = new Hls({
                         enableWorker: true,
                         lowLatencyMode: true,
                         liveSyncDuration: 1,
                         liveMaxLatencyDuration: 5,
-                        liveDurationInfinity: true
+                        liveDurationInfinity: true,
+                        // Edge 特定优化
+                        manifestLoadingTimeOut: 10000,
+                        manifestLoadingMaxRetry: 3,
+                        manifestLoadingRetryDelay: 1000,
+                        debug: true,
+                        xhrSetup: function(xhr, url) {
+                            console.log('Loading URL:', url);
+                            xhr.withCredentials = false;
+                        }
                     });
+
                     hls.loadSource(hlsUrl);
                     hls.attachMedia(video);
+                    
                     hls.on(Hls.Events.MANIFEST_PARSED, function() {
                         console.log('视频流已加载，可以播放');
+                        browserWarning.style.display = 'none';
                     });
 
                     hls.on(Hls.Events.ERROR, function(event, data) {
@@ -108,13 +151,24 @@
                         }
                     });
 
+                    hls.on(Hls.Events.MANIFEST_LOADING, function() {
+                        console.log('正在加载播放列表...');
+                    });
+
+                    hls.on(Hls.Events.MANIFEST_LOADED, function() {
+                        console.log('播放列表加载完成');
+                    });
+
                     return hls;
                 } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                     // 对于 Safari 等原生支持 HLS 的浏览器
                     video.src = hlsUrl;
+                    browserWarning.style.display = 'none';
                 } else {
-                    console.error('您的浏览器不支持 HLS');
-                    alert('您的浏览器不支持 HLS，请尝试使用 Chrome、Firefox 或 Safari');
+                    const warning = '您的浏览器不支持 HLS，请使用 Chrome、Firefox、Edge 或 Safari';
+                    console.error(warning);
+                    browserWarning.textContent = warning;
+                    browserWarning.style.display = 'block';
                 }
             }
 
@@ -123,7 +177,9 @@
 
             // 按钮事件
             playBtn.addEventListener('click', function() {
-                video.play();
+                video.play().catch(function(error) {
+                    console.error('播放失败:', error);
+                });
             });
 
             pauseBtn.addEventListener('click', function() {
@@ -135,6 +191,13 @@
                     player.destroy();
                 }
                 initPlayer();
+            });
+
+            // 添加错误处理
+            video.addEventListener('error', function(e) {
+                console.error('视频播放错误:', e);
+                browserWarning.textContent = '视频播放出错，请刷新页面重试';
+                browserWarning.style.display = 'block';
             });
         });
     </script>
